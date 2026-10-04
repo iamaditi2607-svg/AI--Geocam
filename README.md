@@ -1,13 +1,13 @@
 # GPS Map Camera - AI Vision & Smart Geotagging
 
-A browser-based GPS camera with live geotagging, AI-powered place insights, an interactive map, voice announcements, and photo watermarking. The interface defaults to English and includes an optional Hindi language switch.
+A browser-based GPS camera with live geotagging, AI-powered place insights, an interactive map, voice announcements, and photo watermarking. The interface includes a language selector.
 
 ## Features
 
 - Live camera preview with GPS coordinates, altitude, accuracy, date, and time.
 - Four watermark templates: Modern Glass, Classic GPS, Cyber HUD, and Minimalist.
 - Reverse geocoding, place search, and an interactive map with street, satellite, and dark layers.
-- Voice announcements and voice-based location search in English or Hindi.
+- Voice announcements and voice-based location search.
 - AI place summaries, nearby highlights, local food suggestions, photography tips, and travel captions.
 - Capture, preview, download, and share geotagged photos.
 - Optional Gemini API key for enhanced image and landmark analysis.
