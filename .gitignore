@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+backend/venv/
+.env
+
+# Uploads
+backend/uploads/*.jpg
+backend/uploads/*.png
+backend/uploads/photos_meta.json
+!backend/uploads/.gitkeep
+
+# VS Code & OS
+.DS_Store
+Thumbs.db

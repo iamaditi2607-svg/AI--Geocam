@@ -1,0 +1,16 @@
+{
+  "name": "GPS Map Camera - AI Geocam",
+  "short_name": "GPS AI Cam",
+  "description": "Smart Geotagging & AI Vision Map Camera",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#0a0e17",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20viewBox=%220%200%20100%20100%22><circle fill=%22%2300f2fe%22 cx=%2250%22 cy=%2250%22 r=%2245%22/><text y=%22.75em%22 x=%2222%22 font-size=%2250%22>📍</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

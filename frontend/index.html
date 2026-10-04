@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GPS Map Camera - AI Geotag & Vision</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Favicon / Theme -->
+  <meta name="theme-color" content="#0a0e17">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20viewBox=%220%200%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>📍</text></svg>">
+</head>
+<body class="bg-dark text-light">
+
+  <!-- ========================================================== -->
+  <!-- 1. SPLASH SCREEN ("GPS MAP CAMERA" on App Open)            -->
+  <!-- ========================================================== -->
+  <div id="splashScreen" class="splash-screen">
+    <div class="splash-particles"></div>
+    <div class="splash-content">
+      <!-- Animated Lens Aperture with Radar Sweep -->
+      <div class="aperture-container">
+        <div class="radar-sweep"></div>
+        <div class="radar-grid"></div>
+        <div class="lens-ring outer-ring"></div>
+        <div class="lens-ring middle-ring"></div>
+        <div class="lens-center">
+          <i class="fa-solid fa-camera-retro"></i>
+        </div>
+        <div class="gps-crosshair"></div>
+      </div>
+
+      <!-- App Title Required by User -->
+      <div class="splash-title-wrap">
+        <span class="splash-badge"><i class="fa-solid fa-satellite-dish fa-spin"></i> GPS + AI SYSTEM</span>
+        <h1 class="splash-title">GPS MAP CAMERA</h1>
+        <p class="splash-tagline">AI Vision &bull; Live Telemetry &bull; Smart Geotagging</p>
+      </div>
+
+      <!-- Live Loading Telemetry Bar -->
+      <div class="splash-loader-box">
+        <div class="splash-progress">
+          <div id="splashProgressBar" class="progress-bar"></div>
+        </div>
+        <div class="splash-status-text">
+          <span id="splashStatus"><i class="fa-solid fa-location-crosshairs fa-fade"></i> Locking GPS Satellites...</span>
+          <span id="splashPercent">0%</span>
+        </div>
+      </div>
+
+      <button id="skipSplashBtn" class="btn-skip-splash">
+        Start Camera <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- 2. MAIN APPLICATION CONTAINER (Dual View: Camera + AI Tool) -->
+  <!-- ========================================================== -->
+  <div id="appContainer" class="app-layout">
+    
+    <!-- Top Header Bar -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-location-dot"></i>
+          <span class="live-dot"></span>
+        </div>
+        <div>
+          <h2 class="brand-title">GPS MAP CAMERA</h2>
+          <div class="brand-subtitle">
+            <span id="headerSatStatus" class="status-badge"><i class="fa-solid fa-satellite"></i> GPS ACTIVE</span>
+            <span id="headerAccuracy" class="accuracy-badge">Acc: ±5m</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Quick Controls -->
+      <div class="header-actions">
+        <!-- Language Switcher Button (Hindi / English) -->
+        <button id="langToggleBtn" class="header-btn lang-switch-btn" title="भाषा बदलें / Switch Language">
+          <i class="fa-solid fa-language text-cyan"></i>
+          <span id="currentLangLabel">हिंदी</span>
+        </button>
+
+        <!-- Voice Announcement Toggle -->
+        <button id="autoVoiceToggleBtn" class="header-btn" title="Auto Voice Announce Place Name" data-active="true">
+          <i class="fa-solid fa-volume-high"></i>
+          <span class="btn-text">Voice: ON</span>
+        </button>
+
+        <!-- Template Selector Dropdown -->
+        <div class="template-picker-wrap">
+          <label for="templateSelect" class="template-label"><i class="fa-solid fa-stamp"></i> <span id="lblStamp">Stamp:</span></label>
+          <select id="templateSelect" class="template-select">
+            <option value="classic">Classic GPS</option>
+            <option value="modern" selected>Modern Glass</option>
+            <option value="cyber">Cyber HUD</option>
+            <option value="minimal">Minimalist</option>
+          </select>
+        </div>
+
+        <!-- Settings Modal Trigger -->
+        <button id="openSettingsBtn" class="header-btn icon-only" title="Settings / Gemini API Key">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace (Dual Viewport: Camera & AI Tool Side-by-Side) -->
+    <main class="main-workspace">
+      
+      <!-- ============================================== -->
+      <!-- PANE 1: GPS CAMERA VIEWFINDER & LIVE WATERMARK -->
+      <!-- ============================================== -->
+      <section class="camera-pane">
+        <div class="viewfinder-container" id="viewfinderWrapper">
+          <!-- Live Camera Video Element -->
+          <video id="cameraVideo" autoplay playsinline muted></video>
+          
+          <!-- Fallback or Offline Simulated Feed -->
+          <div id="cameraOfflineFallback" class="camera-placeholder" style="display: none;">
+            <i class="fa-solid fa-camera-rotate fa-fade"></i>
+            <p>Accessing Camera Feed...</p>
+            <small>Click 'Allow' when browser asks for camera permission.</small>
+          </div>
+
+          <!-- Viewfinder Grid & HUD crosshairs -->
+          <div class="viewfinder-hud">
+            <div class="hud-corners top-left"></div>
+            <div class="hud-corners top-right"></div>
+            <div class="hud-corners bottom-left"></div>
+            <div class="hud-corners bottom-right"></div>
+            <div class="hud-center-cross"></div>
+            <div id="gridOverlay" class="hud-rule-of-thirds"></div>
+          </div>
+
+          <!-- Live Compass & Horizon indicator -->
+          <div class="compass-badge" id="compassBadge">
+            <i class="fa-regular fa-compass fa-spin" style="animation-duration: 20s;"></i>
+            <span id="compassHeading">N 024° NE</span>
+          </div>
+
+          <!-- Live Watermark Preview Overlay (Dynamically changes with template) -->
+          <div id="liveWatermarkOverlay" class="watermark-overlay template-modern">
+            <!-- Mini-map Thumbnail inside stamp -->
+            <div class="stamp-minimap" id="stampMiniMapContainer">
+              <div id="stampMiniMap"></div>
+              <div class="minimap-crosshair"></div>
+            </div>
+
+            <!-- Stamp Text Details -->
+            <div class="stamp-content">
+              <!-- Place Name Prominent Header -->
+              <div class="stamp-place-header">
+                <i class="fa-solid fa-location-dot stamp-pin-icon"></i>
+                <div class="stamp-place-names">
+                  <h3 id="stampPrimaryName" class="stamp-title">Detecting location...</h3>
+                  <p id="stampFullAddress" class="stamp-address">Fetching GPS coordinates & address...</p>
+                </div>
+              </div>
+
+              <!-- GPS Coordinates & Telemetry Grid -->
+              <div class="stamp-telemetry-row">
+                <span class="telemetry-item"><i class="fa-solid fa-globe"></i> <span id="stampCoords">28.6139° N, 77.2090° E</span></span>
+                <span class="telemetry-item"><i class="fa-solid fa-mountain"></i> <span id="stampAltitude">Alt: 216m</span></span>
+                <span class="telemetry-item"><i class="fa-solid fa-clock"></i> <span id="stampDateTime">--:--:--</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating Capture Controls Overlay -->
+          <div class="camera-floating-controls">
+            <!-- Switch Front / Back Camera -->
+            <button id="switchCameraBtn" class="control-bubble" title="Flip Camera">
+              <i class="fa-solid fa-camera-rotate"></i>
+            </button>
+            
+            <!-- Grid Toggle -->
+            <button id="toggleGridBtn" class="control-bubble" title="Toggle Grid">
+              <i class="fa-solid fa-border-all"></i>
+            </button>
+
+            <!-- Torch / Flash Toggle -->
+            <button id="toggleTorchBtn" class="control-bubble" title="Torch / Flashlight">
+              <i class="fa-solid fa-bolt"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Shutter & Main Action Bar -->
+        <div class="camera-shutter-bar">
+          <!-- Gallery Thumbnail Preview -->
+          <button id="openGalleryBtn" class="gallery-preview-btn" title="View Captured Photos">
+            <img id="lastPhotoThumb" src="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20viewBox=%220%200%20100%20100%22><rect fill=%22%23222%22 width=%22100%22 height=%22100%22/><text fill=%22%23666%22 y=%22.9em%22 font-size=%2260%22>🖼️</text></svg>" alt="Gallery">
+            <span class="badge-count" id="galleryCount">0</span>
+          </button>
+
+          <!-- Native Phone Camera Button (Works on all mobile phones over HTTP) -->
+          <input type="file" id="nativeCameraInput" accept="image/*" capture="environment" style="display: none;">
+          <button id="nativeCameraBtn" class="control-bubble" title="Phone Camera se Photo Kheinchein (Native Phone Camera)">
+            <i class="fa-solid fa-mobile-screen-button text-cyan"></i>
+          </button>
+
+          <!-- Big Shutter Button -->
+          <button id="capturePhotoBtn" class="main-shutter-btn" title="Take Geotagged Photo">
+            <div class="shutter-inner">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <div class="shutter-pulse"></div>
+          </button>
+
+          <!-- AI Quick Analyze Live View -->
+          <button id="quickAnalyzeLiveBtn" class="btn-ai-quick" title="AI Vision Scan Current View">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            <span id="btnAiQuickText">AI SCAN</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- PANE 2: INTEGRATED AI TOOL & INTERACTIVE MAP   -->
+      <!-- ============================================== -->
+      <section class="ai-tool-pane">
+        
+        <!-- Tab Bar for AI & Map Panel -->
+        <div class="pane-tabs">
+          <button class="pane-tab active" data-target="tabAiTool">
+            <i class="fa-solid fa-brain"></i> <span id="tabLabelAi">AI Assistant</span>
+          </button>
+          <button class="pane-tab" data-target="tabLiveMap">
+            <i class="fa-solid fa-map-location-dot"></i> <span id="tabLabelMap">Live Map</span>
+          </button>
+          <button class="pane-tab" data-target="tabGallery">
+            <i class="fa-solid fa-images"></i> <span id="tabLabelGallery">Saved Shots</span>
+          </button>
+        </div>
+
+        <!-- TAB CONTENT 1: AI ASSISTANT -->
+        <div id="tabAiTool" class="tab-pane active">
+          
+          <!-- Voice & Text Location Setter ("Jo hum bole AI se vahi location vo likhe") -->
+          <div class="location-search-box">
+            <div class="search-input-inner">
+              <i class="fa-solid fa-location-dot text-cyan"></i>
+              <input type="text" id="manualLocationInput" placeholder="Apni jagah ka naam bolein ya likhein (e.g. Kanpur, Bhopal)..." />
+              <button id="voiceSetLocationBtn" class="btn-voice-pin" title="Voice se location bolein (Speak to set location)">
+                <i class="fa-solid fa-microphone"></i>
+              </button>
+              <button id="submitLocationBtn" class="btn-submit-pin" title="Set Location">
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- Current Location Highlight Card with Voice Announcer -->
+          <div class="location-hero-card">
+            <div class="loc-card-header">
+              <span class="live-pill"><i class="fa-solid fa-tower-broadcast fa-fade"></i> <span id="lblCurrentSpot">CURRENT SPOT</span></span>
+              <span id="locUpdateTime" class="time-pill">Just now</span>
+            </div>
+            
+            <div class="loc-main-info">
+              <h2 id="aiCardPlaceName" class="loc-heading">Detecting Location...</h2>
+              <p id="aiCardAddress" class="loc-subtext">Waiting for GPS coordinate fix...</p>
+            </div>
+
+            <!-- "hum jhaa pr bhi khade ho uss jagah ka naam lele bs" -->
+            <!-- Prominent Voice Announcer Button -->
+            <div class="voice-announcer-banner">
+              <button id="speakPlaceNameBtn" class="btn-voice-announce">
+                <div class="voice-icon-pulse">
+                  <i class="fa-solid fa-volume-high"></i>
+                </div>
+                <div class="voice-text-wrap">
+                  <strong id="btnVoiceTextMain">Jagah Ka Naam Boliye 🔊</strong>
+                  <span id="voiceStatusHint">Click karein aur jagah ka naam suniye</span>
+                </div>
+              </button>
+
+              <!-- Speech to Text Microphone (Voice Input) -->
+              <button id="micVoiceQuestionBtn" class="btn-mic-question" title="Voice se sawal puchiye (Speak to ask AI)">
+                <i class="fa-solid fa-microphone"></i>
+              </button>
+            </div>
+
+            <div class="quick-telemetry-tags">
+              <span class="tag"><i class="fa-solid fa-location-arrow"></i> <span id="tagLatLon">--</span></span>
+              <span class="tag"><i class="fa-solid fa-compass"></i> <span id="tagHeading">--</span></span>
+              <span class="tag"><i class="fa-solid fa-gauge-high"></i> <span id="tagSpeed">0 km/h</span></span>
+            </div>
+          </div>
+
+          <!-- AI Analysis & Explorer Cards -->
+          <div class="ai-cards-container">
+            
+            <!-- AI Overview Card -->
+            <div class="ai-card">
+              <div class="ai-card-title">
+                <i class="fa-solid fa-sparkles text-cyan"></i>
+                <h3 id="lblAiOverview">AI Place Overview</h3>
+                <button id="refreshAiBtn" class="btn-icon-tiny" title="Refresh Insights">
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+              </div>
+              <p id="aiPlaceSummary" class="ai-summary-text">
+                Analyzing your current surroundings with AI geolocation intelligence...
+              </p>
+              
+              <!-- Hindi Announcement Text Quote -->
+              <div id="aiHindiSpeechQuote" class="hindi-quote-box">
+                <i class="fa-solid fa-quote-left"></i>
+                <span id="aiHindiQuoteText">Aap abhi is jagah par khade hain...</span>
+              </div>
+            </div>
+
+            <!-- Famous Spots & History nearby -->
+            <div class="ai-card">
+              <div class="ai-card-title">
+                <i class="fa-solid fa-monument text-amber"></i>
+                <h3 id="lblAiFamous">Famous Nearby & History</h3>
+              </div>
+              <ul id="aiFamousList" class="insights-list">
+                <li><i class="fa-solid fa-circle-check text-cyan"></i> Historical landmarks in the surrounding district</li>
+                <li><i class="fa-solid fa-circle-check text-cyan"></i> Popular tourist & photography spots</li>
+                <li><i class="fa-solid fa-circle-check text-cyan"></i> Prominent cultural points of interest</li>
+              </ul>
+            </div>
+
+            <!-- Food Specialties & Photo Tips -->
+            <div class="ai-card">
+              <div class="ai-card-title">
+                <i class="fa-solid fa-utensils text-emerald"></i>
+                <h3 id="lblAiFood">Local Food & Photography Tips</h3>
+              </div>
+              <div class="chips-container" id="aiFoodChips">
+                <span class="chip"><i class="fa-solid fa-bowl-food"></i> Local Street Food</span>
+                <span class="chip"><i class="fa-solid fa-mug-hot"></i> Famous Regional Chai</span>
+              </div>
+              <div class="photo-tip-box" id="aiPhotoTip">
+                <i class="fa-solid fa-camera"></i>
+                <span>Tip: Capture with Modern Glass watermark to highlight live GPS coordinates & date stamp!</span>
+              </div>
+            </div>
+
+            <!-- Instagram / Travel Caption Generator -->
+            <div class="ai-card caption-card">
+              <div class="ai-card-title">
+                <i class="fa-brands fa-instagram text-pink"></i>
+                <h3 id="lblAiCaption">Travel Caption & Hashtags</h3>
+                <button id="copyCaptionBtn" class="btn-copy" title="Copy Caption">
+                  <i class="fa-regular fa-copy"></i> <span id="lblBtnCopy">Copy</span>
+                </button>
+              </div>
+              <p id="aiTravelCaption" class="caption-text">
+                Exploring this amazing place with GPS Map Camera! 📍✨
+              </p>
+              <div id="aiHashtags" class="hashtags-wrap">
+                <span>#GPSMapCamera</span> <span>#AIGeocam</span> <span>#TravelMoments</span>
+              </div>
+            </div>
+
+            <!-- Custom Voice/Text AI Question Box -->
+            <div class="ai-card query-box-card">
+              <div class="ai-card-title">
+                <i class="fa-solid fa-message-question text-purple"></i>
+                <h3 id="lblAiAsk">Ask AI About This Place</h3>
+              </div>
+              <div class="query-input-group">
+                <input type="text" id="customAiQueryInput" placeholder="Yahan ke baare mein kuch bhi puchiye..." />
+                <button id="sendCustomQueryBtn" class="btn-send-query">
+                  <i class="fa-solid fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: INTERACTIVE LEAFLET MAP -->
+        <div id="tabLiveMap" class="tab-pane">
+          <div class="map-controls-toolbar">
+            <div class="map-layer-selector">
+              <button class="map-btn active" data-maplayer="street" id="btnMapStreet">Street</button>
+              <button class="map-btn" data-maplayer="satellite" id="btnMapSat">Satellite</button>
+              <button class="map-btn" data-maplayer="dark" id="btnMapDark">Dark</button>
+            </div>
+            <button id="recenterMapBtn" class="btn-icon-tiny" title="Recenter on My Location">
+              <i class="fa-solid fa-crosshairs"></i> <span id="btnRecenterText">Recenter</span>
+            </button>
+          </div>
+          <div id="mainInteractiveMap" class="leaflet-map-canvas"></div>
+          <div class="map-hint-banner">
+            <i class="fa-solid fa-info-circle"></i>
+            <span id="mapHintText">Map par kahin bhi click karke pin badal sakte hain aur wahan ka photo watermark le sakte hain!</span>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 3: SAVED SHOTS GALLERY -->
+        <div id="tabGallery" class="tab-pane">
+          <div class="gallery-header">
+            <h3 id="lblGalleryTitle">Captured Geotagged Photos</h3>
+            <span id="galleryTotalBadge" class="badge-count-pill">0 Photos</span>
+          </div>
+          <div id="galleryGrid" class="gallery-grid">
+            <div class="gallery-empty-state">
+              <i class="fa-solid fa-images"></i>
+              <p id="lblGalleryEmpty">Abhi tak koi photo capture nahi ki gayi.</p>
+              <small id="lblGalleryEmptySub">Shutter button dabakar pehli photo kheenchiye!</small>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- 3. PHOTO PREVIEW & DOWNLOAD MODAL                          -->
+  <!-- ========================================================== -->
+  <div id="photoPreviewModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-image text-cyan"></i> Captured Geotagged Photo</h3>
+        <button id="closePreviewBtn" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-img-container">
+          <img id="previewModalImg" src="" alt="Captured Geotagged Image">
+        </div>
+        <div class="preview-details">
+          <div class="preview-loc-pill">
+            <i class="fa-solid fa-location-dot"></i>
+            <span id="previewPlaceName">Location</span>
+          </div>
+          <p id="previewAddress" class="text-muted small">Address</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="downloadPhotoBtn" class="btn-action-primary">
+          <i class="fa-solid fa-download"></i> <span id="btnDownloadText">Download Photo</span>
+        </button>
+        <button id="aiScanCapturedBtn" class="btn-action-ai">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> <span id="btnAiScanText">AI Vision Scan</span>
+        </button>
+        <button id="sharePhotoBtn" class="btn-action-secondary">
+          <i class="fa-solid fa-share-nodes"></i> <span id="btnShareText">Share</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================== -->
+  <!-- 4. SETTINGS & GEMINI API KEY MODAL                        -->
+  <!-- ========================================================== -->
+  <div id="settingsModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-gear text-cyan"></i> Settings & AI Configuration</h3>
+        <button id="closeSettingsBtn" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body settings-body">
+        <div class="form-group">
+          <label><i class="fa-solid fa-key"></i> Google Gemini API Key (Optional):</label>
+          <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." class="form-control" />
+          <small class="form-help">Enter your Gemini API key for advanced visual landmark recognition and live Gemini Vision. (App also has full built-in smart AI without key!)</small>
+        </div>
+
+        <div class="form-group">
+          <label><i class="fa-solid fa-language"></i> Voice Language:</label>
+          <select id="voiceLanguageSelect" class="form-control">
+            <option value="hi-IN" selected>Hindi (हिंदी / Hinglish)</option>
+            <option value="en-IN">English (India)</option>
+            <option value="en-US">English (US)</option>
+          </select>
+        </div>
+
+        <div class="form-group toggle-group">
+          <div>
+            <strong>Auto Voice Announcement:</strong>
+            <p class="small text-muted">Automatically announce place name when location updates</p>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="autoVoiceCheckbox" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label><i class="fa-solid fa-palette"></i> Default Stamp Template:</label>
+          <select id="defaultTemplateSelect" class="form-control">
+            <option value="modern" selected>Modern Glass</option>
+            <option value="classic">Classic GPS</option>
+            <option value="cyber">Cyber HUD</option>
+            <option value="minimal">Minimalist</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="saveSettingsBtn" class="btn-action-primary">
+          <i class="fa-solid fa-check"></i> Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Voice Listening Toast Indicator -->
+  <div id="voiceListeningToast" class="voice-listening-toast" style="display: none;">
+    <div class="toast-pulse-icon">
+      <i class="fa-solid fa-microphone-lines fa-fade"></i>
+    </div>
+    <div class="toast-text-block">
+      <strong id="voiceToastTitle">सुन रहे हैं... (Listening)</strong>
+      <span id="voiceToastSub">अपनी लोकेशन बोलिए (e.g. Kanpur, Bhopal, Indore)...</span>
+    </div>
+    <button id="cancelVoiceBtn" class="btn-toast-close" title="Cancel">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
+  <!-- Offscreen Canvas for Baking High-Res Watermarked Photos -->
+  <canvas id="bakingCanvas" style="display: none;"></canvas>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>
